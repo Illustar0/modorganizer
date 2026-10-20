@@ -35,6 +35,7 @@ along with Mod Organizer.  If not, see <http://www.gnu.org/licenses/>.
 #include <QRegularExpression>
 #include <QSortFilterProxyModel>
 #include <QString>
+#include <QStringDecoder>
 #include <QtDebug>
 
 #include <esptk/espfile.h>
@@ -68,6 +69,27 @@ static QString TruncateString(const QString& text)
   }
 
   return new_text;
+}
+
+static QString DecodeHeaderString(const std::string& text)
+{
+  // the strings are null-terminated
+  const QByteArrayView bytes(text.c_str());
+
+  // stateless, so that a sequence cut off at the end counts as invalid
+  QStringDecoder utf8(QStringDecoder::Utf8, QStringDecoder::Flag::Stateless);
+  QString decoded = utf8.decode(bytes);
+  if (!utf8.hasError()) {
+    return decoded;
+  }
+
+  // Qt only supports Windows-1252 when built with ICU
+  const int size = static_cast<int>(bytes.size());
+  std::wstring wide(MultiByteToWideChar(1252, 0, bytes.data(), size, nullptr, 0),
+                    L'\0');
+  MultiByteToWideChar(1252, 0, bytes.data(), size, wide.data(),
+                      static_cast<int>(wide.size()));
+  return QString::fromStdWString(wide);
 }
 
 PluginList::PluginList(OrganizerCore& organizer)
@@ -2161,8 +2183,8 @@ PluginList::ESPInfo::ESPInfo(const QString& name, bool forceLoaded, bool forceEn
 
     formVersion   = file.formVersion();
     headerVersion = file.headerVersion();
-    author        = QString::fromLatin1(file.author().c_str());
-    description   = QString::fromLatin1(file.description().c_str());
+    author        = DecodeHeaderString(file.author());
+    description   = DecodeHeaderString(file.description());
 
     for (auto&& m : file.masters()) {
       masters.insert(QString::fromStdString(m));
