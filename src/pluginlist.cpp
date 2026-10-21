@@ -83,13 +83,8 @@ static QString DecodeHeaderString(const std::string& text)
     return decoded;
   }
 
-  // Qt only supports Windows-1252 when built with ICU
-  const int size = static_cast<int>(bytes.size());
-  std::wstring wide(MultiByteToWideChar(1252, 0, bytes.data(), size, nullptr, 0),
-                    L'\0');
-  MultiByteToWideChar(1252, 0, bytes.data(), size, wide.data(),
-                      static_cast<int>(wide.size()));
-  return QString::fromStdWString(wide);
+  QStringDecoder windows1252("windows-1252");
+  return windows1252.decode(bytes);
 }
 
 PluginList::PluginList(OrganizerCore& organizer)
