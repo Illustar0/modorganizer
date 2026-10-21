@@ -923,10 +923,17 @@ void PluginList::refreshLoadOrder()
   syncLoadOrder();
   // set priorities according to locked load order
   std::map<int, QString> lockedLoadOrder;
-  std::for_each(m_LockedOrder.begin(), m_LockedOrder.end(),
-                [&lockedLoadOrder](const std::pair<QString, int>& ele) {
-                  lockedLoadOrder[ele.second] = ele.first;
-                });
+  for (const auto& [name, loadOrder] : m_LockedOrder) {
+    // a disabled plugin has no load order to enforce; placing it anyway makes it
+    // flip around the plugin holding its index on every refresh, and it would also
+    // take the slot of an enabled plugin locked to the same index. The lock is
+    // kept and applies again once the plugin is enabled.
+    auto nameIter = m_ESPsByName.find(name);
+    if (nameIter != m_ESPsByName.end() && !m_ESPs[nameIter->second].enabled) {
+      continue;
+    }
+    lockedLoadOrder[loadOrder] = name;
+  }
 
   int targetPrio       = 0;
   bool savePluginsList = false;
